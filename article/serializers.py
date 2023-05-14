@@ -4,6 +4,7 @@ from article.models import Article, Comment, Bid
 
 class ArticleSerializer(serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
+    max_user = serializers.StringRelatedField()
     image = serializers.ImageField()
 
     def get_user(self, obj):
@@ -64,9 +65,20 @@ class BidCreateSerializer(serializers.ModelSerializer):
 
 
 class BiddingSerializer(serializers.ModelSerializer):
+    max_user = serializers.StringRelatedField()
+
     class Meta:
         model = Bid
         fields = ["max_user", "max_point"]
+
+
+class BiddingArticleSerializer(serializers.ModelSerializer):
+    article = ArticleSerializer()
+    max_user = serializers.StringRelatedField()
+
+    class Meta:
+        model = Bid
+        fields = ["article", "max_user", "max_point", ]
 
 
 class BookmarkSerializer(serializers.ModelSerializer):
@@ -80,9 +92,14 @@ class BookmarkSerializer(serializers.ModelSerializer):
 
 
 class CommentSerializer(serializers.ModelSerializer):
+    user = serializers.SerializerMethodField()
+
+    def get_user(self, obj):
+        return obj.user.username
+
     class Meta:
         model = Comment
-        fields = "__all__"
+        fields = ['content', 'user']
 
 
 class CommentCreateSerializer(serializers.ModelSerializer):

@@ -16,9 +16,9 @@ from article.serializers import (
 )
 from rest_framework.pagination import PageNumberPagination
 import pytz
-from django.utils import timezone
 from datetime import datetime, timedelta
 import logging
+from django.utils import timezone
 
 
 class ArticlePagination(PageNumberPagination):
@@ -27,7 +27,7 @@ class ArticlePagination(PageNumberPagination):
 
 class ArticleView(APIView):
     pagination_class = ArticlePagination
-    serializer_class = ArticleListSerializer
+    serializer_class = ArticleSerializer
     @property
     def paginator(self):
         if not hasattr(self, '_paginator'):
@@ -56,17 +56,19 @@ class ArticleView(APIView):
         page = self.paginate_queryset(articles)
         serializer = ArticleCreateSerializer(articles, many=True)
         serializer2 = ArticleSerializer(articles, many=True)
+        bid = Bid.objects.all()
+        bid_serializer = BiddingSerializer(bid, many=True)
         if page is not None:
             serializer = self.get_paginated_response(self.serializer_class(page, many=True).data)
         else:
             serializer = self.serializer_class(articles, many=True)
-        return Response({'article': serializer.data, 'article2': serializer2.data}, status=status.HTTP_200_OK)
+        return Response({'article': serializer.data, 'article2': serializer2.data, 'bid': bid_serializer.data}, status=status.HTTP_200_OK)
     
     def post(self, request):
+        print("12312312")
         time_zone = pytz.timezone('Asia/Seoul')
         current_time = datetime.now(time_zone) + timedelta(minutes=32)
-        date_format = '%Y-%m-%d %H:%M:%S'
-        finished_at = datetime.strptime(request.data['finished_at'], date_format).replace(tzinfo=time_zone)
+        finished_at = datetime.fromisoformat(request.data['finished_at']).replace(tzinfo=time_zone)
         if finished_at < current_time:
             return Response({"message":"경매 종료시간은 현재시간 이후로 설정해야 합니다."}, status=status.HTTP_400_BAD_REQUEST)
         else:
@@ -110,24 +112,28 @@ class ArticleDetailView(APIView):
     
     
     def get(self, request, article_id):
-        if type(article_id) == int:
-            article = get_object_or_404(Article, id=article_id)
-            serializer = ArticleSerializer(article)
-            comment = Comment.objects.filter(article_id=article_id).order_by('-created_at')
-            comment_serializer = CommentSerializer(comment, many=True)
-            return Response({'article':serializer.data, 'comment':comment_serializer.data}, status=status.HTTP_200_OK)
-        elif article_id in ['A','B','C','D']:
+        if article_id in [10001,10002,10003,10004]:
+            print("asdaasdasdsadsdsad")
             articles = Article.objects.filter(category=article_id).order_by('-created_at')
             articles2 = Article.objects.filter(category=article_id).order_by('-created_at')
-            print(articles2)
             page = self.paginate_queryset(articles)
             serializer = ArticleSerializer(articles, many=True)
             serializer2 = ArticleSerializer(articles2, many=True)
-            if page is not None:
-                serializer = self.get_paginated_response(self.serializer_class(page, many=True).data)
-            else:
-                serializer = self.serializer_class(articles, many=True)
+            # if page is not None:
+            #     serializer = self.get_paginated_response(self.serializer_class(page, many=True).data)
+            # else:
+            #     serializer = self.serializer_class(articles, many=True)
             return Response({'article':serializer.data, 'article2':serializer2.data}, status=status.HTTP_200_OK)
+        else:
+            print("asdasdsad")
+            article = get_object_or_404(Article, id=article_id)
+            serializer = ArticleSerializer(article)
+            bid = get_object_or_404(Article, id=article_id)
+            bid_serializer = BiddingSerializer(bid)
+            comment = Comment.objects.filter(article_id=article_id).order_by('-created_at')
+            comment_serializer = CommentSerializer(comment, many=True)
+            return Response({'article':serializer.data, 'comment':comment_serializer.data, 'bid': bid_serializer.data}, status=status.HTTP_200_OK)
+
 
     def patch(self, request, article_id):
         article = get_object_or_404(Article, id=article_id)
@@ -157,8 +163,8 @@ class Bidding(APIView):
     def patch(self, request, article_id):
         time_zone = pytz.timezone('Asia/Seoul')
         current_time = datetime.now(time_zone)
-        article = get_object_or_404(Article,id=article_id)
-        bid = get_object_or_404(Bid,id=article_id)
+        article = get_object_or_404(Article, id=article_id)
+        bid = get_object_or_404(Bid, article_id=article_id)
         if bid.max_point >= int(request.data['max_point']):
             return Response({'message': "현재 입찰가보다 높은 금액으로 입찰해야 합니다."}, status=status.HTTP_400_BAD_REQUEST)
         elif request.user.point < int(request.data['max_point']):
